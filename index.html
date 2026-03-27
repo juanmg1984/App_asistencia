@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+<title>Tomar Lista</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;800&family=DM+Mono:wght@500&display=swap" rel="stylesheet"/>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #080f1e; --surface: #0d1b35; --card: #16213e;
+    --border: #1a2f55; --border2: #243a66;
+    --text: #e2e8f0; --muted: #475569; --hint: #334155;
+    --blue: #3b82f6; --blue-dim: #1d4ed8;
+    --green: #4ade80; --red: #f87171; --amber: #fbbf24;
+    --green-bg: rgba(74,222,128,0.12); --red-bg: rgba(248,113,113,0.12); --amber-bg: rgba(251,191,36,0.12);
+  }
+  html, body { background: var(--bg); color: var(--text); font-family: 'DM Sans', system-ui, sans-serif; min-height: 100vh; -webkit-tap-highlight-color: transparent; }
+  button { font-family: inherit; cursor: pointer; border: none; background: none; }
+  input[type=date] { font-family: 'DM Sans', sans-serif; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  /* Animations */
+  @keyframes fadeUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .fade-up { animation: fadeUp 0.25s ease both; }
+
+  /* Layout */
+  #topbar { position: sticky; top: 0; z-index: 100; background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 16px; }
+  #topbar-inner { max-width: 680px; margin: 0 auto; }
+  #content { max-width: 680px; margin: 0 auto; padding: 14px 16px 130px; }
+
+  /* Course tabs */
+  #course-tabs { display: flex; gap: 2px; overflow-x: auto; padding: 10px 0 0; scrollbar-width: none; }
+  #course-tabs::-webkit-scrollbar { display: none; }
+  .course-tab { padding: 7px 14px; border-radius: 10px 10px 0 0; font-size: 12px; font-weight: 700; white-space: nowrap; flex-shrink: 0; color: var(--muted); border-bottom: 2px solid transparent; transition: all 0.15s; }
+  .course-tab.active { color: #60a5fa; background: var(--card); border-bottom-color: var(--blue); }
+  .course-tab:hover:not(.active) { color: var(--text); }
+
+  /* View tabs */
+  #view-row { display: flex; align-items: center; gap: 8px; padding: 8px 0 10px; flex-wrap: wrap; }
+  .view-tab { padding: 5px 12px; border-radius: 8px; font-size: 12px; font-weight: 700; color: var(--muted); transition: all 0.15s; }
+  .view-tab.active { background: var(--blue); color: #fff; }
+
+  /* Pills */
+  .pill { padding: 5px 14px; border-radius: 20px; font-size: 12px; font-weight: 700; color: var(--muted); background: var(--surface); transition: all 0.15s; }
+  .pill.active { background: var(--blue); color: #fff; }
+
+  /* Student card */
+  .student-card { display: flex; align-items: center; gap: 12px; border-radius: 14px; padding: 11px 14px; transition: all 0.12s; user-select: none; border: 1px solid var(--border); background: var(--card); cursor: pointer; }
+  .student-card.status-P { background: var(--green-bg); border-color: rgba(74,222,128,0.35); }
+  .student-card.status-A { background: var(--red-bg); border-color: rgba(248,113,113,0.35); }
+  .student-card.status-T { background: var(--amber-bg); border-color: rgba(251,191,36,0.35); }
+  .student-card:active { transform: scale(0.985); }
+
+  .student-avatar { width: 42px; height: 42px; border-radius: 11px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; font-family: 'DM Mono', monospace; background: var(--surface); color: var(--hint); transition: all 0.15s; }
+  .student-avatar.status-P { background: var(--green); color: #080f1e; font-size: 20px; box-shadow: 0 0 14px rgba(74,222,128,0.45); }
+  .student-avatar.status-A { background: var(--red); color: #080f1e; font-size: 20px; box-shadow: 0 0 14px rgba(248,113,113,0.45); }
+  .student-avatar.status-T { background: var(--amber); color: #080f1e; font-size: 20px; box-shadow: 0 0 14px rgba(251,191,36,0.45); }
+
+  .student-name { font-weight: 700; font-size: 14px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .student-stats { display: flex; gap: 8px; margin-top: 2px; }
+  .stat { font-size: 11px; font-family: 'DM Mono', monospace; }
+
+  .status-badge { font-size: 12px; font-weight: 800; font-family: 'DM Mono', monospace; padding: 4px 10px; border-radius: 8px; flex-shrink: 0; background: var(--surface); color: var(--muted); }
+  .status-badge.status-P { background: rgba(74,222,128,0.18); color: var(--green); }
+  .status-badge.status-A { background: rgba(248,113,113,0.18); color: var(--red); }
+  .status-badge.status-T { background: rgba(251,191,36,0.18); color: var(--amber); }
+
+  /* Summary / resumen */
+  .summary-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 10px; }
+  .summary-card { background: var(--card); border-radius: 14px; padding: 14px 12px; text-align: center; border: 1px solid var(--border); }
+  .summary-num { font-size: 30px; font-weight: 900; font-family: 'DM Mono', monospace; }
+  .summary-label { font-size: 10px; color: var(--muted); font-weight: 700; margin-top: 2px; }
+
+  .resumen-card { background: var(--card); border-radius: 12px; padding: 12px 14px; border: 1px solid var(--border); }
+  .resumen-card.risk { border-color: rgba(248,113,113,0.3); }
+  .pct-bar-bg { margin-top: 8px; height: 5px; background: var(--surface); border-radius: 3px; overflow: hidden; }
+  .pct-bar { height: 100%; border-radius: 3px; transition: width 0.5s; }
+
+  /* Historial table */
+  #historial-wrap { overflow-x: auto; }
+  .hist-table { border-collapse: separate; border-spacing: 0 4px; width: 100%; font-size: 12px; }
+  .hist-table th { padding: 6px 8px; color: var(--hint); font-weight: 600; text-align: center; font-size: 10px; white-space: nowrap; }
+  .hist-table th.name-col { text-align: left; padding-left: 12px; position: sticky; left: 0; background: var(--bg); }
+  .hist-table td { padding: 4px 3px; background: var(--card); text-align: center; }
+  .hist-table td.name-cell { padding: 8px 12px; background: var(--card); border-radius: 8px 0 0 8px; font-weight: 700; color: var(--text); position: sticky; left: 0; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hist-table td.end-cell { padding: 4px 6px; background: var(--card); border-radius: 0 8px 8px 0; width: 8px; }
+  .hist-cell { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 7px; font-size: 14px; font-weight: 800; background: var(--surface); color: var(--hint); }
+  .hist-cell.P { background: rgba(74,222,128,0.18); color: var(--green); }
+  .hist-cell.A { background: rgba(248,113,113,0.18); color: var(--red); }
+  .hist-cell.T { background: rgba(251,191,36,0.18); color: var(--amber); }
+
+  /* Save bar */
+  #save-bar { position: fixed; bottom: 0; left: 0; right: 0; z-index: 50; background: linear-gradient(to top, #080f1e 70%, transparent); padding: 16px; }
+  #save-bar-inner { max-width: 680px; margin: 0 auto; }
+  #save-btn { width: 100%; padding: 15px; border-radius: 14px; font-size: 16px; font-weight: 800; color: #fff; transition: all 0.2s; }
+  #save-btn.ready { background: linear-gradient(135deg, #3b82f6, #2563eb); box-shadow: 0 0 24px rgba(59,130,246,0.4); }
+  #save-btn.saving { background: var(--card); color: var(--muted); cursor: not-allowed; }
+  #save-btn.saved { background: #166534; }
+  #save-btn.incomplete { background: var(--surface); color: var(--hint); cursor: not-allowed; }
+  #save-msg { text-align: center; font-size: 13px; font-weight: 700; margin-bottom: 8px; min-height: 20px; }
+
+  /* Login screen */
+  #login-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 24px; }
+  .login-box { text-align: center; max-width: 340px; width: 100%; }
+  #login-btn { width: 100%; padding: 16px; border-radius: 14px; background: linear-gradient(135deg, #3b82f6, #2563eb); color: #fff; font-size: 16px; font-weight: 800; box-shadow: 0 0 30px rgba(59,130,246,0.35); transition: all 0.2s; }
+  #login-btn:active { transform: scale(0.98); }
+
+  /* Loading */
+  .spinner { width: 32px; height: 32px; border: 3px solid var(--border2); border-top-color: var(--blue); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 40px auto; }
+
+  /* Quick mark row */
+  #quick-mark { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; align-items: center; }
+  .mark-btn { padding: 5px 12px; border-radius: 8px; font-size: 12px; font-weight: 700; background: transparent; }
+  #count-row { margin-left: auto; display: flex; gap: 10px; }
+  .count-chip { font-size: 13px; font-weight: 800; font-family: 'DM Mono', monospace; }
+
+  /* Misc */
+  #error-box { background: rgba(248,113,113,0.1); border: 1px solid rgba(248,113,113,0.3); border-radius: 10px; padding: 10px 14px; color: var(--red); font-size: 13px; margin-bottom: 16px; }
+  .icon-btn { padding: 7px 10px; color: var(--hint); font-size: 16px; transition: color 0.15s; }
+  .icon-btn:hover { color: var(--text); }
+  #no-courses { text-align: center; padding: 60px 20px; color: var(--muted); }
+  .sub-pct { font-size: 10px; font-family: 'DM Mono', monospace; font-weight: 700; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-box">
+    <div style="font-size:52px;margin-bottom:12px;">📋</div>
+    <div style="font-size:32px;font-weight:900;letter-spacing:-0.03em;line-height:1;color:#f1f5f9;">Tomar Lista</div>
+    <div style="font-size:14px;color:var(--muted);margin:10px 0 28px;line-height:1.5;">
+      Conectá tu Drive para cargar todos tus cursos
+    </div>
+    <div id="error-box" style="display:none;"></div>
+    <button id="login-btn" onclick="signIn()">🔑 Iniciar con Google</button>
+    <div style="margin-top:14px;font-size:11px;color:var(--hint);line-height:1.7;">
+      Necesitás una carpeta llamada <strong style="color:var(--muted);">Asistencia</strong> en tu Drive<br>con los archivos .xlsx convertidos a Google Sheets
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" style="display:none;">
+  <div id="topbar">
+    <div id="topbar-inner">
+      <div id="course-tabs"></div>
+      <div id="view-row">
+        <button class="view-tab active" data-view="tomar" onclick="switchView('tomar')">📋 Tomar</button>
+        <button class="view-tab" data-view="historial" onclick="switchView('historial')">📊 Historial</button>
+        <button class="view-tab" data-view="resumen" onclick="switchView('resumen')">👥 Resumen</button>
+        <input type="date" id="date-input" style="margin-left:auto;background:var(--surface);border:1px solid var(--border);color:#94a3b8;padding:5px 10px;border-radius:8px;font-size:12px;" onchange="selectedDate=this.value;clearSaveMsg()"/>
+        <button class="icon-btn" onclick="loadCourses()" title="Recargar">⟳</button>
+        <button class="icon-btn" style="font-size:12px;" onclick="signOut()">Salir</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="content">
+    <div id="loading" style="display:none;"><div class="spinner"></div></div>
+    <div id="no-courses" style="display:none;">No encontré archivos en la carpeta <strong>"Asistencia"</strong> de tu Drive</div>
+
+    <!-- TOMAR -->
+    <div id="view-tomar">
+      <div id="quick-mark">
+        <span style="font-size:12px;color:var(--hint);font-weight:600;">Marcar todos:</span>
+        <button class="mark-btn" style="border:1px solid rgba(74,222,128,0.4);color:var(--green);" onclick="markAll('P')">✓ Presente</button>
+        <button class="mark-btn" style="border:1px solid rgba(248,113,113,0.4);color:var(--red);"  onclick="markAll('A')">✗ Ausente</button>
+        <button class="mark-btn" style="border:1px solid rgba(251,191,36,0.4);color:var(--amber);"  onclick="markAll('T')">◷ Tardanza</button>
+        <div id="count-row">
+          <span class="count-chip" style="color:var(--green);" id="cnt-P">✓0</span>
+          <span class="count-chip" style="color:var(--red);"   id="cnt-A">✗0</span>
+          <span class="count-chip" style="color:var(--amber);" id="cnt-T">◷0</span>
+          <span class="count-chip" style="color:var(--muted);" id="cnt-E">·0</span>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;" id="filter-pills">
+        <button class="pill active" data-f="all"  onclick="setFilter('all')">Todos</button>
+        <button class="pill"        data-f="P"    onclick="setFilter('P')">Presentes</button>
+        <button class="pill"        data-f="A"    onclick="setFilter('A')">Ausentes</button>
+        <button class="pill"        data-f="T"    onclick="setFilter('T')">Tardanzas</button>
+      </div>
+      <div id="student-list" style="display:flex;flex-direction:column;gap:6px;"></div>
+    </div>
+
+    <!-- HISTORIAL -->
+    <div id="view-historial" style="display:none;">
+      <div id="historial-wrap"><table class="hist-table" id="hist-table"></table></div>
+    </div>
+
+    <!-- RESUMEN -->
+    <div id="view-resumen" style="display:none;">
+      <div class="summary-grid" id="summary-grid"></div>
+      <div id="resumen-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+    </div>
+  </div>
+
+  <!-- Save bar -->
+  <div id="save-bar">
+    <div id="save-bar-inner">
+      <div id="save-msg"></div>
+      <div id="incomplete-msg" style="text-align:center;font-size:12px;color:var(--hint);margin-bottom:6px;"></div>
+      <button id="save-btn" class="incomplete" onclick="saveToSheet()">Completar todos para guardar</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://accounts.google.com/gsi/client"></script>
+<script src="https://apis.google.com/js/api.js"></script>
+<script>
+// ─── Config ───────────────────────────────────
+const CLIENT_ID   = "950770625345-6v7qcoknov35hncn5hlj4eqs5jq0qd5v.apps.googleusercontent.com";
+const FOLDER_NAME = "Asistencia";
+const SCOPES      = "https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive";
+
+// ─── State ────────────────────────────────────
+let courses      = [];
+let activeCourse = null;
+let attendance   = {};
+let selectedDate = todayISO();
+let currentView  = "tomar";
+let filterStatus = "all";
+let saving       = false;
+let tokenClient  = null;
+
+// ─── Utils ────────────────────────────────────
+function todayISO() { return new Date().toISOString().split("T")[0]; }
+
+function fmtDate(iso) {
+  const d = new Date(iso + "T12:00:00");
+  const days   = ["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
+  const months = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+  return days[d.getDay()] + " " + d.getDate() + " " + months[d.getMonth()];
+}
+
+function idxToCol(n) {
+  let s = ""; n++;
+  while (n > 0) { s = String.fromCharCode(((n-1)%26)+65) + s; n = Math.floor((n-1)/26); }
+  return s;
+}
+
+const STATUS = {
+  P: { icon:"✓", color:"var(--green)", label:"Presente" },
+  A: { icon:"✗", color:"var(--red)",   label:"Ausente"  },
+  T: { icon:"◷", color:"var(--amber)", label:"Tardanza" },
+  "":{ icon:"·", color:"var(--muted)", label:"—"        }
+};
+
+// ─── Google Auth (GIS - nueva API de Google) ──
+function signIn() {
+  const btn = document.getElementById("login-btn");
+  btn.textContent = "Conectando…"; btn.disabled = true;
+
+  const doAuth = () => {
+    tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: CLIENT_ID,
+      scope: SCOPES,
+      callback: (resp) => {
+        if (resp.error) {
+          btn.textContent = "🔑 Iniciar con Google"; btn.disabled = false;
+          showError("Error: " + resp.error);
+          return;
+        }
+        // token obtenido, cargar gapi client
+        gapi.load("client", () => {
+          gapi.client.setToken({ access_token: resp.access_token });
+          Promise.all([
+            gapi.client.load("https://sheets.googleapis.com/$discovery/rest?version=v4"),
+            gapi.client.load("https://www.googleapis.com/discovery/v1/apis/drive/v3/rest")
+          ]).then(() => { showApp(); loadCourses(); })
+            .catch(e => { btn.textContent = "🔑 Iniciar con Google"; btn.disabled = false; showError(e.message || "Error cargando APIs"); });
+        });
+      }
+    });
+    tokenClient.requestAccessToken({ prompt: "consent" });
+  };
+
+  // esperar a que google.accounts esté disponible
+  if (window.google?.accounts?.oauth2) { doAuth(); }
+  else {
+    let tries = 0;
+    const t = setInterval(() => {
+      if (window.google?.accounts?.oauth2) { clearInterval(t); doAuth(); }
+      else if (++tries > 20) { clearInterval(t); btn.textContent = "🔑 Iniciar con Google"; btn.disabled = false; showError("No se pudo cargar Google Sign-In"); }
+    }, 300);
+  }
+}
+
+function signOut() {
+  gapi.client.setToken(null);
+  document.getElementById("app").style.display = "none";
+  document.getElementById("login-screen").style.display = "flex";
+  const btn = document.getElementById("login-btn");
+  btn.textContent = "🔑 Iniciar con Google"; btn.disabled = false;
+  courses = []; activeCourse = null;
+}
+
+function showApp() {
+  document.getElementById("login-screen").style.display = "none";
+  document.getElementById("app").style.display = "block";
+  document.getElementById("date-input").value = selectedDate;
+}
+
+function showError(msg) {
+  const el = document.getElementById("error-box");
+  el.textContent = "⚠ " + msg; el.style.display = "block";
+}
+
+// ─── Drive / Sheets ───────────────────────────
+async function sheetsGet(id, range) {
+  const r = await gapi.client.sheets.spreadsheets.values.get({ spreadsheetId: id, range });
+  return r.result.values || [];
+}
+
+async function sheetsUpdate(id, range, values) {
+  await gapi.client.sheets.spreadsheets.values.update({
+    spreadsheetId: id, range, valueInputOption: "USER_ENTERED",
+    resource: { values }
+  });
+}
+
+async function findFolder(name) {
+  const r = await gapi.client.drive.files.list({
+    q: `name='${name}' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+    fields: "files(id,name)"
+  });
+  return (r.result.files || [])[0] || null;
+}
+
+async function listFiles(folderId) {
+  const q = `'${folderId}' in parents and trashed=false and mimeType='application/vnd.google-apps.spreadsheet'`;
+  const r = await gapi.client.drive.files.list({ q, fields: "files(id,name)", orderBy: "name" });
+  return r.result.files || [];
+}
+
+// ─── Parse sheet data ─────────────────────────
+function parseSheet(rows) {
+  if (!rows || rows.length < 2) return { students:[], dates:[], dateCols:[], attendance:{} };
+  const header = rows[1] || [];
+  const dates = [], dateCols = [];
+  for (let c = 2; c < header.length; c++) {
+    const v = header[c];
+    if (!v || v === "" || v === "TOTALES" || v === "P" || v === "A" || v === "T") break;
+    dates.push(String(v));
+    dateCols.push(c);
+  }
+  const students = [], att = {};
+  for (let r = 2; r < rows.length; r++) {
+    const row = rows[r] || [];
+    const name = row[1];
+    if (!name || name.trim() === "") continue;
+    const id = String(row[0] || r);
+    students.push({ id, name: String(name).trim() });
+    att[id] = {};
+    dateCols.forEach((c, i) => {
+      const v = row[c];
+      if (v === "P" || v === "A" || v === "T") att[id][dates[i]] = v;
+    });
+  }
+  return { students, dates, dateCols, attendance: att };
+}
+
+// ─── Load courses ─────────────────────────────
+async function loadCourses() {
+  setLoading(true);
+  try {
+    const folder = await findFolder(FOLDER_NAME);
+    if (!folder) throw new Error(`No encontré la carpeta "${FOLDER_NAME}" en tu Drive`);
+    const files = await listFiles(folder.id);
+    if (!files.length) throw new Error("La carpeta está vacía o no tiene Google Sheets");
+    courses = await Promise.all(files.map(async f => {
+      try {
+        const rows = await sheetsGet(f.id, "Asistencia!A1:BZ80");
+        return { id: f.id, name: f.name, data: parseSheet(rows) };
+      } catch {
+        return { id: f.id, name: f.name, data: { students:[], dates:[], dateCols:[], attendance:{} } };
+      }
+    }));
+    renderCourseTabs();
+    if (courses.length) selectCourse(courses[0]);
+    else document.getElementById("no-courses").style.display = "block";
+  } catch(e) {
+    showError(e.message || "Error al cargar cursos");
+  }
+  setLoading(false);
+}
+
+function setLoading(v) {
+  document.getElementById("loading").style.display = v ? "block" : "none";
+  document.getElementById("no-courses").style.display = "none";
+}
+
+// ─── Course tabs ──────────────────────────────
+function renderCourseTabs() {
+  const el = document.getElementById("course-tabs");
+  el.innerHTML = courses.map(c =>
+    `<button class="course-tab${activeCourse?.id===c.id?' active':''}" onclick="selectCourseById('${c.id}')">${c.name}</button>`
+  ).join("") +
+  `<button class="icon-btn" onclick="loadCourses()" style="margin-left:auto;" title="Recargar">⟳</button>
+   <button class="icon-btn" style="font-size:12px;" onclick="signOut()">Salir</button>`;
+}
+
+function selectCourseById(id) { selectCourse(courses.find(c => c.id === id)); }
+
+function selectCourse(course) {
+  activeCourse = course;
+  attendance = {};
+  course.data.students.forEach(s => { attendance[s.id] = ""; });
+  filterStatus = "all";
+  clearSaveMsg();
+  renderCourseTabs();
+  renderCurrentView();
+}
+
+// ─── Views ────────────────────────────────────
+function switchView(v) {
+  currentView = v;
+  ["tomar","historial","resumen"].forEach(n => {
+    document.getElementById("view-"+n).style.display = n===v ? "block" : "none";
+    const tab = document.querySelector(`.view-tab[data-view="${n}"]`);
+    if (tab) tab.classList.toggle("active", n===v);
+  });
+  document.getElementById("date-input").style.display = v==="tomar" ? "block" : "none";
+  document.getElementById("save-bar").style.display = v==="tomar" ? "block" : "none";
+  renderCurrentView();
+}
+
+function renderCurrentView() {
+  if (!activeCourse) return;
+  if (currentView === "tomar")    renderTomar();
+  if (currentView === "historial") renderHistorial();
+  if (currentView === "resumen")  renderResumen();
+}
+
+// ─── Tomar lista ──────────────────────────────
+function setFilter(f) {
+  filterStatus = f;
+  document.querySelectorAll("#filter-pills .pill").forEach(p => p.classList.toggle("active", p.dataset.f===f));
+  renderTomar();
+}
+
+function renderTomar() {
+  if (!activeCourse) return;
+  updateCounts();
+  const students = activeCourse.data.students.filter(s => filterStatus==="all" || attendance[s.id]===filterStatus);
+  const list = document.getElementById("student-list");
+  list.innerHTML = students.map((s, idx) => {
+    const st = attendance[s.id] || "";
+    const stats = getStats(s.id);
+    const pctColor = stats.pct === null ? "var(--muted)" : stats.pct >= 75 ? "var(--green)" : "var(--red)";
+    return `<div class="student-card${st?' status-'+st:''} fade-up" onclick="toggle('${s.id}')" style="animation-delay:${idx*0.018}s">
+      <div class="student-avatar${st?' status-'+st:''}">${st ? STATUS[st].icon : s.id}</div>
+      <div style="flex:1;min-width:0;">
+        <div class="student-name">${s.name}</div>
+        <div class="student-stats">
+          <span class="stat" style="color:var(--green)">✓${stats.P}</span>
+          <span class="stat" style="color:var(--red)">✗${stats.A}</span>
+          ${stats.T > 0 ? `<span class="stat" style="color:var(--amber)">◷${stats.T}</span>` : ""}
+          ${stats.pct !== null ? `<span class="stat" style="color:${pctColor};font-weight:800">${stats.pct}%</span>` : ""}
+        </div>
+      </div>
+      <div class="status-badge${st?' status-'+st:''}">${st||"—"}</div>
+    </div>`;
+  }).join("");
+  updateSaveBtn();
+}
+
+function toggle(id) {
+  const cur = attendance[id];
+  attendance[id] = cur==="" ? "P" : cur==="P" ? "A" : cur==="A" ? "T" : "";
+  clearSaveMsg();
+  renderTomar();
+}
+
+function markAll(st) {
+  clearSaveMsg();
+  activeCourse.data.students.forEach(s => { attendance[s.id] = st; });
+  renderTomar();
+}
+
+function updateCounts() {
+  if (!activeCourse) return;
+  const c = {P:0,A:0,T:0,e:0};
+  activeCourse.data.students.forEach(s => { const v=attendance[s.id]; if(v) c[v]++; else c.e++; });
+  document.getElementById("cnt-P").textContent = "✓"+c.P;
+  document.getElementById("cnt-A").textContent = "✗"+c.A;
+  document.getElementById("cnt-T").textContent = "◷"+c.T;
+  document.getElementById("cnt-E").textContent = "·"+c.e;
+}
+
+function updateSaveBtn() {
+  if (!activeCourse) return;
+  const btn = document.getElementById("save-btn");
+  const inc = document.getElementById("incomplete-msg");
+  const empty = activeCourse.data.students.filter(s => !attendance[s.id]).length;
+  if (saving) {
+    btn.className="save-btn saving"; btn.textContent="Guardando en Drive…"; inc.textContent="";
+  } else if (empty > 0) {
+    btn.className="save-btn incomplete"; btn.textContent="Completar todos para guardar";
+    inc.textContent = empty + " alumno"+(empty!==1?"s":"")+" sin marcar";
+  } else {
+    btn.className="save-btn ready"; btn.textContent="💾 Guardar en Drive"; inc.textContent="";
+  }
+}
+
+function clearSaveMsg() { document.getElementById("save-msg").textContent=""; document.getElementById("save-msg").style.color=""; }
+
+// ─── Save ─────────────────────────────────────
+async function saveToSheet() {
+  if (!activeCourse || saving) return;
+  const empty = activeCourse.data.students.filter(s => !attendance[s.id]).length;
+  if (empty > 0) return;
+  saving = true; updateSaveBtn();
+  try {
+    const { students, dates, dateCols } = activeCourse.data;
+    const dateLabel = fmtDate(selectedDate);
+    let colLetter;
+    const colIndex = dates.indexOf(dateLabel);
+    if (colIndex === -1) {
+      const newColIdx = (dateCols[dateCols.length-1] ?? 1) + 1;
+      colLetter = idxToCol(newColIdx);
+      await sheetsUpdate(activeCourse.id, `Asistencia!${colLetter}2`, [[dateLabel]]);
+      // update local state
+      activeCourse.data.dates.push(dateLabel);
+      activeCourse.data.dateCols.push(newColIdx);
+    } else {
+      colLetter = idxToCol(dateCols[colIndex]);
+    }
+    const values = students.map(s => [attendance[s.id] || ""]);
+    const startRow = 3, endRow = startRow + students.length - 1;
+    await sheetsUpdate(activeCourse.id, `Asistencia!${colLetter}${startRow}:${colLetter}${endRow}`, values);
+    // update local attendance data
+    students.forEach(s => {
+      if (!activeCourse.data.attendance[s.id]) activeCourse.data.attendance[s.id] = {};
+      activeCourse.data.attendance[s.id][dateLabel] = attendance[s.id];
+    });
+    const msg = document.getElementById("save-msg");
+    msg.textContent = "✓ Guardado en Drive · " + fmtDate(selectedDate);
+    msg.style.color = "var(--green)";
+    const btn = document.getElementById("save-btn");
+    btn.className="save-btn saved"; btn.textContent="✓ Guardado";
+  } catch(e) {
+    const msg = document.getElementById("save-msg");
+    msg.textContent = "✗ Error: " + (e.message || "no se pudo guardar");
+    msg.style.color = "var(--red)";
+  }
+  saving = false; updateSaveBtn();
+}
+
+// ─── Stats ────────────────────────────────────
+function getStats(studentId) {
+  if (!activeCourse) return { P:0,A:0,T:0,total:0,pct:null };
+  const hist = activeCourse.data.attendance[studentId] || {};
+  const vals = Object.values(hist).filter(Boolean);
+  const P = vals.filter(x=>x==="P").length;
+  const A = vals.filter(x=>x==="A").length;
+  const T = vals.filter(x=>x==="T").length;
+  const total = P+A+T;
+  return { P, A, T, total, pct: total ? Math.round(((P+T)/total)*100) : null };
+}
+
+// ─── Historial ────────────────────────────────
+function renderHistorial() {
+  if (!activeCourse) return;
+  const { students, dates, attendance: att } = activeCourse.data;
+  const lastDates = dates.slice(-12);
+  const tbl = document.getElementById("hist-table");
+  tbl.innerHTML = `<thead><tr>
+    <th class="name-col">Alumno</th>
+    ${lastDates.map(d=>`<th>${d}</th>`).join("")}
+    <th></th>
+  </tr></thead>
+  <tbody>${students.map(s => {
+    const hist = att[s.id] || {};
+    const stats = getStats(s.id);
+    const pctColor = stats.pct===null ? "var(--muted)" : stats.pct>=75 ? "var(--green)" : "var(--red)";
+    const shortName = s.name.split(" ").slice(0,2).join(" ");
+    return `<tr>
+      <td class="name-cell">${shortName}<div class="sub-pct" style="color:${pctColor}">${stats.pct!==null?stats.pct+"%":"—"}</div></td>
+      ${lastDates.map(d => {
+        const v = hist[d] || "";
+        return `<td><span class="hist-cell ${v}">${v ? STATUS[v].icon : "·"}</span></td>`;
+      }).join("")}
+      <td class="end-cell"></td>
+    </tr>`;
+  }).join("")}</tbody>`;
+}
+
+// ─── Resumen ──────────────────────────────────
+function renderResumen() {
+  if (!activeCourse) return;
+  const { students } = activeCourse.data;
+  const risk = students.filter(s => { const st=getStats(s.id); return st.pct!==null&&st.pct<75; }).length;
+  const ok   = students.filter(s => { const st=getStats(s.id); return st.pct!==null&&st.pct>=75; }).length;
+
+  document.getElementById("summary-grid").innerHTML = [
+    ["Alumnos", students.length, "var(--blue)"],
+    ["En riesgo", risk, "var(--red)"],
+    ["OK ≥75%", ok, "var(--green)"]
+  ].map(([l,v,c]) => `
+    <div class="summary-card" style="border-color:${c}33;">
+      <div class="summary-num" style="color:${c}">${v}</div>
+      <div class="summary-label">${l}</div>
+    </div>`).join("");
+
+  const sorted = [...students].sort((a,b) => {
+    const sa=getStats(a.id), sb=getStats(b.id);
+    return (sa.pct??100)-(sb.pct??100);
+  });
+
+  document.getElementById("resumen-list").innerHTML = sorted.map(s => {
+    const stats = getStats(s.id);
+    const isRisk = stats.pct!==null && stats.pct<75;
+    const pctColor = isRisk ? "var(--red)" : "var(--green)";
+    return `<div class="resumen-card${isRisk?' risk':''}">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:700;font-size:14px;">${s.name}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:1px;">
+            ${stats.P}P · ${stats.A}A${stats.T?` · ${stats.T}T`:""} · ${stats.total} clases
+          </div>
+        </div>
+        <div style="text-align:right;flex-shrink:0;">
+          <div style="font-size:24px;font-weight:900;font-family:'DM Mono',monospace;color:${pctColor};">${stats.pct!==null?stats.pct+"%":"—"}</div>
+          ${isRisk?`<div style="font-size:10px;color:var(--red);font-weight:700;">⚠ RIESGO</div>`:""}
+        </div>
+      </div>
+      <div class="pct-bar-bg"><div class="pct-bar" style="width:${stats.pct??0}%;background:${pctColor};"></div></div>
+    </div>`;
+  }).join("");
+}
+
+// ─── Init ─────────────────────────────────────
+document.getElementById("date-input").value = selectedDate;
+document.getElementById("save-bar").style.display = "none";
+</script>
+</body>
+</html>
